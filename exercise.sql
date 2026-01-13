@@ -27,7 +27,7 @@ create graph am_graph;
 SET graph_path TO am_graph;
 CREATE VLABEL IF NOT EXISTS vgrph00;
 CREATE ELABEL IF NOT EXISTS egrph25;
-CREATE ELABEL IF NOT EXISTS egrph00;
+
 
 
 
@@ -339,6 +339,5 @@ GROUP BY 1,2,3,4,5,6,7,8,9,10,11;
 -- 대량의 데이터 적재 후에는 반드시 통계 정보를 갱신해야 옵티마이저가 올바른 실행 계획을 수립할 수 있습니다.
 SET graph_path TO am_graph;
 ANALYZE am_graph.VGRPH00;
-ANALYZE am_graph.EGRPH00;
 ANALYZE am_graph.egrph25;
 
