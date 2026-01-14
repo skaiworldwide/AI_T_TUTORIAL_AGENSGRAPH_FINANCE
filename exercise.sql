@@ -29,20 +29,6 @@ CREATE VLABEL IF NOT EXISTS vgrph00;
 CREATE ELABEL IF NOT EXISTS egrph25;
 
 
--- 1.2 일별 정제 데이터를 담을 임시 테이블 생성 (agdclr25)
--- [Ref: 4.3.1 Pipeline Architecture]
--- 원천 데이터를 바로 그래프로 적재하지 않고, 'Staging Area' 역할을 하는 정제 테이블(agdclr)을 거칩니다.
--- 이 테이블은 일별 파티션 혹은 일자별 테이블로 관리되어 배치 실패 시 재작업(Rerun)을 용이하게 합니다.
-CREATE TABLE IF NOT EXISTS tutorial_finance.agdclr25 (
-    acnotype text, acno text, acnoname varchar(70), acnobnkcd text, acnobnknm varchar(40),
-    cnprtacnotype text, cnprtacno text, cnprtname varchar(70), cnprtbnkcd text, cnprtbnknm varchar(40),
-    tranymd char(8), tranprcssyms char(20), rapdstcd char(4), prdctctrcnth numeric(7,0),
-    transerno numeric(7,0), ecaltrancncdcd char(1), chnldstcd char(2), chnldtalsbzwkdstcd char(2),
-    tranamt numeric(18,3), cshtrferdstcd char(1), hnd1nbnkcd char(3), hnd1nbrncd char(4),
-    tranafbal numeric(18,3), acncustidnfr char(10), acncustmgtno char(5),
-    ntrcsumrydstcd char(3), sumry varchar(40), cardno char(16), tranuno char(7), bnkbksumry varchar(40)
-);
---CREATE INDEX IF NOT EXISTS agdclr25_idx ON tutorial_finance.agdclr25 (acno, cnprtacno, rapdstcd, tranymd);
 
 -- ## 2. 데이터 정제 (Cleansing)
 -- 원천 데이터(`agbtch01`)로부터 1차 정제 테이블을 생성하고, 노이즈(Top 50 과다 거래 계좌)를 제거한 후 2차 정제 테이블을 만듭니다.
@@ -363,4 +349,39 @@ GROUP BY 1,2,3,4,5,6,7,8,9,10,11;
 SET graph_path TO am_graph;
 ANALYZE am_graph.VGRPH00;
 ANALYZE am_graph.egrph25;
+
+-- 10 하이브리드 모델 설계 (RDB + GDB)
+-- RDBMS 통계 및 집계 & Cypher가 제공하는 직관적인 관계 탐색 
+
+CREATE TABLE IF NOT EXISTS tutorial_finance.agdclr25 
+(
+    acnotype text COLLATE pg_catalog."default",
+    acno text COLLATE pg_catalog."default",
+    acnoname text COLLATE pg_catalog."default",
+    acnobnkcd text COLLATE pg_catalog."default",
+    acnobnknm text COLLATE pg_catalog."default",
+    cnprtacno text COLLATE pg_catalog."default",
+    cnprtacnotype text COLLATE pg_catalog."default",
+    cnprtname text COLLATE pg_catalog."default",
+    cnprtbnknm text COLLATE pg_catalog."default",
+    cnprtbnkcd text COLLATE pg_catalog."default",
+    tranamt bigint,
+    tranymd character varying(8) COLLATE pg_catalog."default",
+    tranprcssyms character varying(30) COLLATE pg_catalog."default",
+    rapdstcd character varying(5) COLLATE pg_catalog."default",
+    prdctctrcnth character varying(10) COLLATE pg_catalog."default",
+    transerno bigint,
+    acncustidnfr character varying(20) COLLATE pg_catalog."default",
+    hndinbnkcd character varying(10) COLLATE pg_catalog."default",
+    hndinbrncd character varying(10) COLLATE pg_catalog."default",
+    sumry character varying(200) COLLATE pg_catalog."default",
+    tranuno character varying(50) COLLATE pg_catalog."default"
+);
+
+insert into tutorial_finance.agdclr25 
+select * from tutorial_finance.tmp_agbtch01_20250701_clr
+
+
+--CREATE INDEX IF NOT EXISTS agdclr25_idx ON tutorial_finance.agdclr25 (acno, cnprtacno, rapdstcd, tranymd);
+
 
