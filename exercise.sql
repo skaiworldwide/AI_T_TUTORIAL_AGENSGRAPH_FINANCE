@@ -29,8 +29,6 @@ CREATE VLABEL IF NOT EXISTS vgrph00;
 CREATE ELABEL IF NOT EXISTS egrph25;
 
 
-
-
 -- 1.2 일별 정제 데이터를 담을 임시 테이블 생성 (agdclr25)
 -- [Ref: 4.3.1 Pipeline Architecture]
 -- 원천 데이터를 바로 그래프로 적재하지 않고, 'Staging Area' 역할을 하는 정제 테이블(agdclr)을 거칩니다.
@@ -68,6 +66,9 @@ SELECT '계좌' as acnotype, rtrim(acno) as acno, rtrim(acnoname) as acnoname, '
        hndinbnkcd, hndinbrncd,  sumry, tranuno
 FROM tutorial_finance.tb_raw_data ;
 
+
+
+
 -- 2.2: 노이즈 추출 및 제거
 -- [Ref: 3.3.1 Filter Conditions - Super Nodes]
 -- 하루에 50개 이상의 서로 다른 계좌와 거래하는 계좌(예: 집금 계좌, 쇼핑몰 결제 계좌)는 '노이즈(Noise)'로 간주합니다.
@@ -98,8 +99,6 @@ SELECT * FROM tutorial_finance.tmp_agbtch01_20250701_clr WHERE tranamt >= 100000
 -- ## 3. 버텍스(Vertex) 데이터 준비
 -- 정제된 데이터에서 Unique한 버텍스(계좌, 이름 등)를 추출하고, 그래프에 이미 존재하는지(`agvclr00`, `vgrph00`) 확인하여 **신규 생성('Y')**과 **갱신('U')** 대상을 분류합니다.
 
-SET work_mem = '2GB';
-
 -- 3.1: 임시 버텍스 테이블 생성 (Source & Target 통합)
 -- [Ref: 5.1.1 Node Temp Table]
 -- 거래 데이터에는 '나(acno)'와 '상대방(cnprtacno)'이 공존합니다.
@@ -111,6 +110,7 @@ SELECT acnotype, acno, acnoname, acnobnkcd, acnobnknm, acncustidnfr FROM (
     UNION 
     SELECT cnprtacnotype, cnprtacno, cnprtname, cnprtbnkcd, cnprtbnknm, 'no_idnfr' FROM tutorial_finance.tmp_agbtch01_20250701_clr
 ) T GROUP BY 1,2,3,4,5,6;
+
 
 
 
@@ -158,8 +158,11 @@ DROP TABLE IF EXISTS tutorial_finance.tmp_amgraph_vt_20250701_clr_create;
 CREATE TABLE tutorial_finance.tmp_amgraph_vt_20250701_clr_create AS
 SELECT acnotype, acno, acnoname, acnobnkcd, acnobnknm, 
        array_remove(array_agg(distinct acncustidnfr), 'no_idnfr') as idnfr_arr
-FROM tutorial_finance.tmp_amgraph_vt_20250701_clr WHERE create_yn = 'Y'
+FROM (select * from tutorial_finance.tmp_amgraph_vt_20250701_clr WHERE create_yn = 'Y') tb
 GROUP BY 1,2,3,4,5;
+
+
+
 
 LOAD FROM tutorial_finance.tmp_amgraph_vt_20250701_clr_create AS row
 CREATE (v:VGRPH00 {type: row.acnotype, acno: row.acno, name: row.acnoname, bnkcd: row.acnobnkcd, bnknm: row.acnobnknm, acncustidnfr_arr: row.idnfr_arr});
@@ -184,17 +187,19 @@ DROP TABLE IF EXISTS tutorial_finance.tmp_amgraph_vt_20250701_search;
 CREATE TABLE IF NOT EXISTS tutorial_finance.tmp_amgraph_vt_20250701_search (id graphid, properties jsonb);
 
 INSERT INTO tutorial_finance.tmp_amgraph_vt_20250701_search
-SELECT id, properties FROM (
+SELECT distinct on (id) id, properties FROM (
     LOAD FROM tutorial_finance.tmp_amgraph_vt_20250701 AS ro
     MATCH (a:vgrph00)
     WHERE a.acno = ro.acno AND a.bnkcd = ro.acnobnkcd
     RETURN id(a) as id, a::jsonb as properties
 ) T;
 
+
+
+
+
 -- ## 5. 엣지(Edge) 데이터 집계 (Aggregation)
 -- 거래 데이터를 출금/입금 단위로 묶고, 거래시간(`tranprcssyms`)과 금액(`tranamt`) 등을 배열로 집계합니다.
-
-SET work_mem = '20GB';
 
 -- 5.1: 엣지 집계 (Array Aggregation)
 -- [Ref: 5.2.1 Edge Aggregation]
@@ -244,13 +249,20 @@ SELECT * FROM (
     SELECT * FROM tutorial_finance.tmp_amgraph_edg_20250701 WHERE rapdstcd = '2'
     UNION ALL
     -- 입금 거래(1) 중 당행 중복이 아닌 것, 혹은 타행 거래
-    SELECT * FROM tutorial_finance.tmp_amgraph_edg_20250701 WHERE rapdstcd = '1' 
+    SELECT  
+    
+	cnprtacnotype as acnotype, cnprtacno as acno, cnprtname as acnoname, cnprtbnkcd as acnobnkcd, cnprtbnknm as acnobnknm,
+	acnotype as cnprtacnotype, acno as cnprtacno, acnoname as cnprtname, acnobnkcd as cnprtbnkcd, acnobnknm as cnprtbnknm,
+    rapdstcd,tranprcssyms_arr,tranamt_arr, sumry_arr, tranuno_arr	
+	
+	
+	FROM tutorial_finance.tmp_amgraph_edg_20250701 WHERE rapdstcd = '1' 
     AND NOT EXISTS (
         SELECT 1 FROM tutorial_finance.tmp_amgraph_edg_20250701_dup_check dup 
         WHERE dup.acno = tutorial_finance.tmp_amgraph_edg_20250701.acno 
         AND dup.tranprcssyms_arr = tutorial_finance.tmp_amgraph_edg_20250701.tranprcssyms_arr
     )
-) T;
+) T ;
 
 CREATE INDEX idx_edg_clr ON tutorial_finance.tmp_amgraph_edg_20250701_clr (acno, cnprtacno);
 
@@ -265,9 +277,20 @@ SET graph_path TO am_graph;
 DROP TABLE IF EXISTS tutorial_finance.tmp_amgraph_edg_20250701_clr_mapped;
 CREATE TABLE tutorial_finance.tmp_amgraph_edg_20250701_clr_mapped AS
 SELECT tb.*, v1.id as start_id, v2.id as end_id
-FROM tutorial_finance.tmp_amgraph_edg_20250701_clr tb
-LEFT JOIN tutorial_finance.tmp_amgraph_vt_20250701_search v1 ON tb.acno = v1.properties->>'acno'
-LEFT JOIN tutorial_finance.tmp_amgraph_vt_20250701_search v2 ON tb.cnprtacno = v2.properties->>'acno';
+from tutorial_finance.tmp_amgraph_edg_20250701_clr tb
+LEFT JOIN tutorial_finance.tmp_amgraph_vt_20250701_search v1 
+ON tb.acno = v1.properties->>'acno'
+and tb.acnotype = v1.properties->>'type'
+and tb.acnoname = v1.properties->>'name'
+and tb.acnobnkcd = v1.properties->>'bnkcd'
+LEFT JOIN tutorial_finance.tmp_amgraph_vt_20250701_search v2 
+ON tb.cnprtacno = v2.properties->>'acno' 
+and tb.cnprtacnotype = v2.properties->>'type'
+and tb.cnprtname = v2.properties->>'name'
+and tb.cnprtbnkcd = v2.properties->>'bnkcd' order by acno, cnprtacno;
+
+
+
 
 -- 7.2: 기존 엣지 존재 여부 확인
 -- 이미 두 노드 사이에 egrph25 레이블을 가진 엣지가 존재하는지 확인합니다.
