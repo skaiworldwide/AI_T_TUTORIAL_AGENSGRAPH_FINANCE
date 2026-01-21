@@ -379,9 +379,13 @@ CREATE TABLE IF NOT EXISTS tutorial_finance.agdclr25
 );
 
 insert into tutorial_finance.agdclr25 
-select * from tutorial_finance.tmp_agbtch01_20250701_clr
+select * from tutorial_finance.tmp_agbtch01_20250701_clr;
+
 
 
 --CREATE INDEX IF NOT EXISTS agdclr25_idx ON tutorial_finance.agdclr25 (acno, cnprtacno, rapdstcd, tranymd);
 
+
+set graph_path to am_graph;
+match p=(a)-[r*6]-() where a.name = '권나연' return p limit 5;
 
