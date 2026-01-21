@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS tutorial_finance.tb_raw_data (
     acnoname character varying(100),
     acnobnkcd character varying(10),
     acnobnknm character varying(50),
-    cnprtacnotype character varying(10),ㅁ
+    cnprtacnotype character varying(10),
     cnprtacno character varying(50),
     cnprtname character varying(100),
     cnprtbnkcd character varying(10),
