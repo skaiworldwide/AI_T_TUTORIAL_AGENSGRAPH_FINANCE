@@ -387,5 +387,7 @@ select * from tutorial_finance.tmp_agbtch01_20250701_clr;
 
 
 set graph_path to am_graph;
-match p=(a)-[r*6]-() where a.name = '권나연' return p limit 5;
+match p=(a)-[r*6]-() where a.name = '권나연' return p limit 5
+union ALL
+match p=(a)-[r*6]-() where a.name = '안유진' return p limit 5;
 
