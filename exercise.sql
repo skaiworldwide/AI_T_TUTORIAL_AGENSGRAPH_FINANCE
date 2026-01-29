@@ -12,8 +12,7 @@
 -- - [x] **Section 5: 엣지(Edge) 데이터 집계** (거래내역 배열화 Array Aggregation)
 -- - [x] **Section 6: 엣지(Edge) 중복 제거 및 검색** (입지구분 1/2 통합, 004 당행 거래 정리)
 -- - [x] **Section 7: 일반 엣지 생성 및 업데이트** (egrph{YY} 레이블 활용)
--- - [x] **Section 8: 대형 엣지(100UP) 처리** (고액 거래 별도 집계 및 EGRPH00 생성)
--- - [x] **Section 9: 최종 정비 및 월간 배치** (파티셔닝 삭제, Analyze, 월초 로직)
+-- - [x] **Section 8: 최종 정비 및 월간 배치** (파티셔닝 삭제, Analyze, 월초 로직)
 
 -- ## 1. 그래프 초기화 및 환경 설정
 drop graph if exists am_graph cascade;
