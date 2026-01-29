@@ -317,33 +317,18 @@ MATCH ()-[r:egrph25]->() WHERE id(r) = row.edge_id
 SET r.tranprcssyms_arr = r.tranprcssyms_arr + row.tranprcssyms_arr,
     r.tranamt_arr = r.tranamt_arr + row.tranamt_arr;
 
--- ## 8. 대형 엣지(100UP, Large Edge) 처리
--- 고액 거래(`100UP`) 테이블에 대해 위와 동일한 집계, 중복 제거, 생성 로직을 수행합니다.
--- 단, 대형 엣지는 별도의 레이블 `EGRPH00`을 사용하기도 하며 성능 최적화가 중요합니다.
 
--- 8.1: 대형 엣지 집계
-DROP TABLE IF EXISTS tutorial_finance.tmp_amgraph_edg_100up_20250701;
-CREATE TABLE tutorial_finance.tmp_amgraph_edg_100up_20250701 AS
-SELECT 
-    acnotype, acno, acnoname, acnobnkcd, acnobnknm, cnprtacnotype, cnprtacno, cnprtname, cnprtbnkcd, cnprtbnknm, rapdstcd,
-    ARRAY_AGG(tranprcssyms ORDER BY tranprcssyms) as tranprcssyms_arr,
-    ARRAY_AGG(tranamt ORDER BY tranprcssyms) as tranamt_arr,
-    ARRAY_AGG(sumry ORDER BY tranprcssyms) as sumry_arr,
-    ARRAY_AGG(tranuno ORDER BY tranprcssyms) as tranuno_arr
-FROM tutorial_finance.tmp_agbtch01_20250701_clr_100up
-GROUP BY 1,2,3,4,5,6,7,8,9,10,11;
-
--- ## 9. 최종 정비 및 시스템 최적화
+-- ## 8. 최종 정비 및 시스템 최적화
 -- 업데이트로 인해 파편화된 엣지를 정리(`partitioned delete logic`)하고, 통계를 갱신합니다.
 
--- 9.1: 통계 갱신 (Analyze)
+-- 8.1: 통계 갱신 (Analyze)
 -- [Ref: 5.5 Statistics Update]
 -- 대량의 데이터 적재 후에는 반드시 통계 정보를 갱신해야 옵티마이저가 올바른 실행 계획을 수립할 수 있습니다.
 SET graph_path TO am_graph;
 ANALYZE am_graph.VGRPH00;
 ANALYZE am_graph.egrph25;
 
--- 10 하이브리드 모델 설계 (RDB + GDB)
+-- 9 하이브리드 모델 설계 (RDB + GDB)
 -- RDBMS 통계 및 집계 & Cypher가 제공하는 직관적인 관계 탐색 
 
 CREATE TABLE IF NOT EXISTS tutorial_finance.agdclr25 
