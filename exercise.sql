@@ -75,13 +75,6 @@ DELETE FROM tutorial_finance.tmp_agbtch01_20250701_clr
 WHERE cnprtacno IN (SELECT cnprtacno FROM tutorial_finance.agvclr02);
 
 
--- 2.6: 고액 거래(100만원 이상) 분리
--- [Ref: 3.3.1 High Value Separation]
--- 분석 중요도가 높은 고액 거래(100만원 이상)는 별도 테이블로 분리합니다.
-DROP TABLE IF EXISTS tutorial_finance.tmp_agbtch01_20250701_clr_100up;
-CREATE TABLE tutorial_finance.tmp_agbtch01_20250701_clr_100up AS
-SELECT * FROM tutorial_finance.tmp_agbtch01_20250701_clr WHERE tranamt >= 1000000;
-
 -- ## 3. 버텍스(Vertex) 데이터 준비
 -- 정제된 데이터에서 Unique한 버텍스(계좌, 이름 등)를 추출하고, 그래프에 이미 존재하는지(`agvclr00`, `vgrph00`) 확인하여 **신규 생성('Y')**과 **갱신('U')** 대상을 분류합니다.
 
